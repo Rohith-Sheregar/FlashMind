@@ -62,6 +62,13 @@ def index():
     return app.send_static_file('index.html')
 
 
+@app.route('/health')
+@limiter.exempt
+def health():
+    """Lightweight health-check endpoint for Render / UptimeRobot keep-alive pings."""
+    return 'OK', 200
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO)
     logger.info(f"Starting backend on {HOST}:{PORT}, uploads={UPLOAD_DIR}, generated={GENERATED_DIR}")
