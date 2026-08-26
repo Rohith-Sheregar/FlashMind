@@ -73,11 +73,6 @@ def ratelimit_handler(e):
     return jsonify(error='Too many requests. Please slow down and try again later.'), 429
 
 
-@app.route('/')
-def index():
-    return app.send_static_file('index.html')
-
-
 @app.route('/health')
 @limiter.exempt
 def health():
