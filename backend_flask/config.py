@@ -44,6 +44,12 @@ DAILY_GENERATION_LIMIT = int(os.environ.get('DAILY_GENERATION_LIMIT', 5))
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY')
 OPENROUTER_VISION_MODEL = os.environ.get('OPENROUTER_VISION_MODEL', 'openai/gpt-4o-mini')
 
+# HuggingFace Inference API (for semantic document condensation)
+# Get a free token at: https://huggingface.co/settings/tokens
+# Leave blank to fall back to simple truncation.
+HF_TOKEN = os.environ.get('HF_TOKEN', '')
+HF_EMBEDDING_MODEL = os.environ.get('HF_EMBEDDING_MODEL', 'BAAI/bge-small-en-v1.5')
+
 # Email / SMTP
 SMTP_EMAIL = os.environ.get('SMTP_EMAIL')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')

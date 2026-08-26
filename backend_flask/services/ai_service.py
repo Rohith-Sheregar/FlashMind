@@ -6,10 +6,10 @@ from openai import OpenAI
 
 try:
     from backend_flask.config import OPENROUTER_API_KEY
-    from backend_flask.services.rag_service import get_rag_processor
+    from backend_flask.services.rag_service import condense_text as _rag_condense
 except ModuleNotFoundError:
     from config import OPENROUTER_API_KEY
-    from services.rag_service import get_rag_processor
+    from services.rag_service import condense_text as _rag_condense
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +85,9 @@ def get_document_text(filepath) -> str:
 
 
 def _get_rag_context(text: str, max_output_chars: int = 15000) -> str:
-    """Condense text in-process via the RAG processor."""
+    """Condense text via the RAG service (HF API or fallback truncation)."""
     try:
-        return get_rag_processor().condense_text(text, max_output_chars=max_output_chars)
+        return _rag_condense(text, max_output_chars=max_output_chars)
     except Exception as e:
         logger.warning(f"RAG condensation failed, falling back to truncation: {e}")
         return text[:max_output_chars]
