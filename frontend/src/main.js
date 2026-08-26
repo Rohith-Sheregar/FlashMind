@@ -36,6 +36,9 @@ const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 let pendingEmail = ''
 let otpCountdown = null
 
+// Track remaining credits globally so callAI can guard before firing
+let _creditsRemaining = null
+
 async function fetchUserStatus() {
     try {
         const token = localStorage.getItem('token')
@@ -47,11 +50,24 @@ async function fetchUserStatus() {
             const limit = data.limit || 5
             const used = data.generations_used || 0
             const remaining = Math.max(limit - used, 0)
+            _creditsRemaining = remaining
             const statsEl = document.getElementById('usageStats')
             statsEl.style.display = 'inline-block'
             statsEl.innerHTML = `Credits: <span id="usageCount">${remaining}</span>/${limit}`
-            // Warn when running low
             statsEl.style.color = remaining === 0 ? 'var(--danger)' : remaining <= 1 ? '#f59e0b' : 'var(--accent)'
+            // Disable / re-enable all AI generate buttons based on credit status
+            const aiButtons = ['generateFlashcardsBtn', 'generateTopicsBtn', 'generateQuizBtn', 'generateMindmapBtn']
+            aiButtons.forEach(id => {
+                const btn = document.getElementById(id)
+                if (!btn) return
+                if (remaining === 0) {
+                    btn.disabled = true
+                    btn.title = 'No credits left. Resets tomorrow.'
+                } else {
+                    btn.disabled = false
+                    btn.title = ''
+                }
+            })
         }
     } catch (e) {
         console.error('Failed to fetch user status:', e)
@@ -334,6 +350,8 @@ async function fetchWithRetry(url, options = {}, maxRetries = 10, delayMs = 5000
         try {
             if (!navigator.onLine) throw new Error('You are offline.')
             const res = await fetchWithAuth(url, options)
+            // Never retry client errors (4xx) — they won't change on retry
+            if (!res.ok && res.status < 500) return res
             if (!res.ok && res.status >= 500) {
                 const errText = await res.text()
                 throw new Error(`Server Error: ${res.status} ${errText}`)
@@ -618,6 +636,9 @@ if (mobileMenuBtn) {
 
 async function callAI(endpoint, actionType, onSuccess, force = false) {
     if (!currentRecordId) return alert('Select a document first')
+    if (_creditsRemaining !== null && _creditsRemaining <= 0) {
+        return alert('⚠️ You have used all your credits for today. Come back tomorrow!')
+    }
     startGenerationOverlay(`Generating ${actionType}...`)
     let progress = 5
     setGenerationProgress(progress, `Generating ${actionType}...`)
