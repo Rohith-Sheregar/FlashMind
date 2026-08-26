@@ -1,27 +1,27 @@
-"""Configuration for backend_flask application.
+"""Configuration for the FlashMind backend.
 
-Values are read from environment variables with sensible defaults for
-local development.
+All values are read from environment variables with sensible defaults
+for local development.
 """
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 BASE_DIR = Path(__file__).parent
 
-# ML service endpoint
-ML_SERVICE_URL = os.environ.get('ML_SERVICE_URL', 'http://localhost:8000')
+# Allowed CORS origins (comma-separated Render URL in production).
+# e.g. FRONTEND_URL=https://flashmind.onrender.com
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
 
 # Uploads / generated paths
 UPLOAD_DIR = os.environ.get('UPLOAD_DIR', str(BASE_DIR / '..' / 'uploads'))
 GENERATED_DIR = os.environ.get('GENERATED_DIR', str(BASE_DIR / '..' / 'generated'))
-MAX_UPLOAD_SIZE_BYTES = int(os.environ.get('MAX_UPLOAD_SIZE_BYTES', 10 * 1024 * 1024)) # 10 MB per uploaded file
-MAX_PDF_UPLOAD_SIZE_BYTES = int(os.environ.get('MAX_PDF_UPLOAD_SIZE_BYTES', 10 * 1024 * 1024)) # 10 MB per PDF
+MAX_UPLOAD_SIZE_BYTES = int(os.environ.get('MAX_UPLOAD_SIZE_BYTES', 10 * 1024 * 1024))
+MAX_PDF_UPLOAD_SIZE_BYTES = int(os.environ.get('MAX_PDF_UPLOAD_SIZE_BYTES', 10 * 1024 * 1024))
 MAX_FILES_PER_DECK = int(os.environ.get('MAX_FILES_PER_DECK', 20))
-MAX_TOTAL_CHARS = int(os.environ.get('MAX_TOTAL_CHARS', 5000000)) # 5 million characters
+MAX_TOTAL_CHARS = int(os.environ.get('MAX_TOTAL_CHARS', 5_000_000))
 
 # Database
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
@@ -36,22 +36,21 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
 # Auth & Rate Limiting
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'default-dev-secret-key')
-RATE_LIMIT_DEFAULT = os.environ.get('RATE_LIMIT_DEFAULT', '10 per hour')
+RATE_LIMIT_DEFAULT = os.environ.get('RATE_LIMIT_DEFAULT', '200 per hour')
 RATE_LIMIT_STORAGE = os.getenv('RATE_LIMIT_STORAGE', 'memory://')
 DAILY_GENERATION_LIMIT = int(os.environ.get('DAILY_GENERATION_LIMIT', 5))
 
+# AI
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY')
 OPENROUTER_VISION_MODEL = os.environ.get('OPENROUTER_VISION_MODEL', 'openai/gpt-4o-mini')
 
-# Email / SMTP (for OTP verification)
+# Email / SMTP
 SMTP_EMAIL = os.environ.get('SMTP_EMAIL')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 
-
-
-# EmailJS (HTTP REST API – no domain needed, 200 free emails/month)
+# EmailJS
 EMAILJS_SERVICE_ID = os.environ.get('EMAILJS_SERVICE_ID')
 EMAILJS_TEMPLATE_ID = os.environ.get('EMAILJS_TEMPLATE_ID')
 EMAILJS_PUBLIC_KEY = os.environ.get('EMAILJS_PUBLIC_KEY')
@@ -59,6 +58,4 @@ EMAILJS_PRIVATE_KEY = os.environ.get('EMAILJS_PRIVATE_KEY')
 
 # Misc
 DEFAULT_PAGE_SIZE = int(os.environ.get('DEFAULT_PAGE_SIZE', 50))
-# Whether to persist generated records to a local JSONL file when Mongo is
-# unavailable. Default: False to avoid creating repo files during local dev.
 ENABLE_FILE_DB = os.environ.get('ENABLE_FILE_DB', 'False').lower() in ('1', 'true', 'yes')
