@@ -44,11 +44,14 @@ async function fetchUserStatus() {
         })
         if (res.ok) {
             const data = await res.json()
-            const limit = data.limit || 25
-            const remaining = Math.max(limit - (data.generations_used || 0), 0)
+            const limit = data.limit || 5
+            const used = data.generations_used || 0
+            const remaining = Math.max(limit - used, 0)
             const statsEl = document.getElementById('usageStats')
             statsEl.style.display = 'inline-block'
             statsEl.innerHTML = `Credits: <span id="usageCount">${remaining}</span>/${limit}`
+            // Warn when running low
+            statsEl.style.color = remaining === 0 ? 'var(--danger)' : remaining <= 1 ? '#f59e0b' : 'var(--accent)'
         }
     } catch (e) {
         console.error('Failed to fetch user status:', e)
@@ -145,8 +148,12 @@ authForm.onsubmit = async (e) => {
     e.preventDefault()
     const user = document.getElementById('username').value.trim()
     const pass = document.getElementById('password').value
+    authError.style.display = 'none'
 
     if (isLoginMode) {
+        authSubmitBtn.disabled = true
+        authSubmitBtn.textContent = 'Signing in…'
+        authSubmitBtn.style.opacity = '0.7'
         try {
             const res = await fetch(`${API_URL}/api/login`, {
                 method: 'POST',
@@ -155,16 +162,27 @@ authForm.onsubmit = async (e) => {
             })
             const data = await res.json()
             if (res.ok) {
+                authSubmitBtn.textContent = '✓ Welcome back!'
                 localStorage.setItem('token', data.access_token)
                 localStorage.setItem('username', data.username)
-                checkAuth()
+                setTimeout(() => checkAuth(), 400)
+            } else if (res.status === 401) {
+                authError.textContent = '❌ Incorrect username or password.'
+                authError.style.display = 'block'
+            } else if (res.status === 429) {
+                authError.textContent = '⏳ Too many login attempts. Please wait a moment.'
+                authError.style.display = 'block'
             } else {
-                authError.textContent = data.error || 'Invalid credentials'
+                authError.textContent = data.error || 'Login failed. Please try again.'
                 authError.style.display = 'block'
             }
         } catch {
-            authError.textContent = 'Network error'
+            authError.textContent = '🚫 Network error. Check your connection and try again.'
             authError.style.display = 'block'
+        } finally {
+            authSubmitBtn.disabled = false
+            authSubmitBtn.textContent = 'Login'
+            authSubmitBtn.style.opacity = '1'
         }
     } else {
         const email = emailInput.value.trim()
@@ -184,7 +202,8 @@ authForm.onsubmit = async (e) => {
             return
         }
         authSubmitBtn.disabled = true
-        authSubmitBtn.textContent = 'Sending OTP...'
+        authSubmitBtn.textContent = 'Sending OTP…'
+        authSubmitBtn.style.opacity = '0.7'
         try {
             const res = await fetch(`${API_URL}/api/register`, {
                 method: 'POST',
@@ -194,16 +213,23 @@ authForm.onsubmit = async (e) => {
             const data = await res.json()
             if (res.ok) {
                 showOtpPhase(email)
+            } else if (res.status === 400) {
+                authError.textContent = data.error || 'Registration failed. Check your details.'
+                authError.style.display = 'block'
+            } else if (res.status === 429) {
+                authError.textContent = '⏳ Too many requests. Please wait a moment.'
+                authError.style.display = 'block'
             } else {
-                authError.textContent = data.error || 'Registration failed'
+                authError.textContent = data.error || 'Registration failed. Please try again.'
                 authError.style.display = 'block'
             }
         } catch {
-            authError.textContent = 'Network error'
+            authError.textContent = '🚫 Network error. Check your connection and try again.'
             authError.style.display = 'block'
         } finally {
             authSubmitBtn.disabled = false
-            authSubmitBtn.textContent = 'Register'
+            authSubmitBtn.textContent = isLoginMode ? 'Login' : 'Register'
+            authSubmitBtn.style.opacity = '1'
         }
     }
 }

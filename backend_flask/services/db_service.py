@@ -90,12 +90,20 @@ def get_record_by_id(record_id: str):
 
 
 def get_user_generation_count(username: str) -> int:
+    """Return how many generations the user has used TODAY. Resets to 0 after midnight."""
     if not _mongo_available:
         return 0
     try:
         col = get_mongo_client()[MONGO_DB_NAME]['user_limits']
         doc = col.find_one({'username': username})
-        if not doc or doc.get('last_reset_date') != datetime.date.today().isoformat():
+        today = datetime.date.today().isoformat()
+        if not doc or doc.get('last_reset_date') != today:
+            # New day — reset in DB so subsequent reads are consistent
+            col.update_one(
+                {'username': username},
+                {'$set': {'generations': 0, 'last_reset_date': today}},
+                upsert=True
+            )
             return 0
         return doc.get('generations', 0)
     except Exception as e:
