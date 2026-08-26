@@ -1,17 +1,8 @@
-"""Email service for sending OTP verification emails.
-
-Supports two backends (in priority order):
-  1. EmailJS (HTTP REST API) - works on Render free tier, no domain needed (recommended)
-  2. SMTP   (Gmail)          - works locally, blocked on Render free tier
-
-Set EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY in your
-environment to use EmailJS.
-Falls back to SMTP if EmailJS keys are not set.
-"""
 import random
 import string
 import logging
 import json
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +18,11 @@ except ModuleNotFoundError:
     )
 
 
-def generate_otp(length=6):
-    """Generate a random numeric OTP of specified length."""
+def generate_otp(length=6) -> str:
     return ''.join(random.choices(string.digits, k=length))
 
 
 def _build_html(otp: str) -> str:
-    """Build the beautiful HTML email body."""
     return f"""
     <!DOCTYPE html>
     <html>
@@ -68,65 +57,45 @@ def _build_html(otp: str) -> str:
 
 
 def _send_via_emailjs(to_email: str, otp: str) -> bool:
-    """Send OTP email using EmailJS REST API.
-
-    No domain verification needed. Free tier: 200 emails/month.
-    Uses your connected Gmail service to deliver real emails to any address.
-    """
-    import requests
-
     payload = {
         'service_id': EMAILJS_SERVICE_ID,
         'template_id': EMAILJS_TEMPLATE_ID,
         'user_id': EMAILJS_PUBLIC_KEY,
-        'template_params': {
-            'email': to_email,
-            'otp_code': otp,
-            'app_name': 'FlashMind',
-        },
+        'template_params': {'email': to_email, 'otp_code': otp, 'app_name': 'FlashMind'},
     }
-
-    # Add private key for server-side authentication if available
     if EMAILJS_PRIVATE_KEY:
         payload['accessToken'] = EMAILJS_PRIVATE_KEY
-
     try:
-        response = requests.post(
+        resp = requests.post(
             'https://api.emailjs.com/api/v1.0/email/send',
             data=json.dumps(payload),
             headers={'Content-Type': 'application/json'},
             timeout=15,
         )
-
-        if response.status_code == 200:
-            logger.info(f"OTP email sent via EmailJS to {to_email}")
+        if resp.status_code == 200:
+            logger.info(f"OTP sent via EmailJS to {to_email}")
             return True
-        else:
-            logger.error(f"EmailJS API error ({response.status_code}): {response.text}")
-            return False
-
+        logger.error(f"EmailJS error ({resp.status_code}): {resp.text}")
+        return False
     except Exception as e:
-        logger.error(f"EmailJS API call failed: {e}")
+        logger.error(f"EmailJS failed: {e}")
         return False
 
 
 def _send_via_smtp(to_email: str, otp: str) -> bool:
-    """Send OTP email using traditional SMTP (works locally, blocked on Render free tier)."""
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
 
     if not SMTP_EMAIL or not SMTP_PASSWORD:
-        logger.error("SMTP credentials not configured. Set SMTP_EMAIL and SMTP_PASSWORD in .env")
+        logger.error("SMTP credentials not configured.")
         return False
 
     msg = MIMEMultipart('alternative')
     msg['From'] = f"FlashMind <{SMTP_EMAIL}>"
     msg['To'] = to_email
     msg['Subject'] = "FlashMind - Verify Your Email"
-
-    plain_text = f"Your FlashMind verification code is: {otp}\n\nThis code is valid for 5 minutes.\nIf you didn't request this, please ignore this email."
-    msg.attach(MIMEText(plain_text, 'plain'))
+    msg.attach(MIMEText(f"Your FlashMind verification code is: {otp}\n\nThis code is valid for 5 minutes.", 'plain'))
     msg.attach(MIMEText(_build_html(otp), 'html'))
 
     try:
@@ -136,29 +105,17 @@ def _send_via_smtp(to_email: str, otp: str) -> bool:
             server.ehlo()
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.send_message(msg)
-        logger.info(f"OTP email sent via SMTP to {to_email}")
+        logger.info(f"OTP sent via SMTP to {to_email}")
         return True
     except smtplib.SMTPAuthenticationError:
-        logger.error("SMTP authentication failed. Check SMTP_EMAIL and SMTP_PASSWORD.")
-        return False
-    except smtplib.SMTPException as e:
-        logger.error(f"SMTP error sending OTP to {to_email}: {e}")
+        logger.error("SMTP authentication failed.")
         return False
     except Exception as e:
-        logger.error(f"Unexpected error sending OTP to {to_email}: {e}")
+        logger.error(f"SMTP error: {e}")
         return False
 
 
 def send_otp_email(to_email: str, otp: str) -> bool:
-    """Send an OTP verification email.
-
-    Priority:
-      1. EmailJS  (if EMAILJS_SERVICE_ID is set) — no domain needed, 200 free/month
-      2. SMTP     (fallback)                      — works locally, blocked on Render free tier
-    """
     if EMAILJS_SERVICE_ID and EMAILJS_TEMPLATE_ID and EMAILJS_PUBLIC_KEY:
-        logger.info("Using EmailJS for email delivery")
         return _send_via_emailjs(to_email, otp)
-
-    logger.info("Using SMTP for email delivery (EmailJS keys not set)")
     return _send_via_smtp(to_email, otp)

@@ -10,16 +10,6 @@ services:
       - mongodb_data:/data/db
     restart: unless-stopped
 
-  ml_service:
-    build:
-      context: ./ml_service
-    container_name: flashmind_ml
-    ports:
-      - "8000:8000"
-    environment:
-      - PORT=8000
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend_flask
@@ -27,18 +17,16 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - ML_SERVICE_URL=http://ml_service:8000/generate
       - MONGO_URI=mongodb://mongodb:27017/
       - MONGO_DB_NAME=flashcard_db
       - UPLOAD_DIR=/app/uploads
       - GENERATED_DIR=/app/generated
-      - JWT_SECRET_KEY=super-secret-key-change-me-in-production
+      - JWT_SECRET_KEY=change-me-in-production
     volumes:
       - ./uploads:/app/uploads
       - ./generated:/app/generated
     depends_on:
       - mongodb
-      - ml_service
     restart: unless-stopped
 
 volumes:
